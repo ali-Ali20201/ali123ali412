@@ -656,7 +656,7 @@ export default function App() {
   };
 
   const [isAdminMode, setIsAdminMode] = useState(() => localStorage.getItem('isAdminMode') === 'true');
-  const [isEditMode, setIsEditMode] = useState(() => localStorage.getItem('isEditMode') !== 'false');
+  const [isEditMode, setIsEditMode] = useState(() => localStorage.getItem('isEditMode') === 'true');
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   const [clickSequence, setClickSequence] = useState<string[]>([]);
