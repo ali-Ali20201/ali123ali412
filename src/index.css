@@ -1,16 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
 @import "tailwindcss";
 
+/* 1. تعريف اللون الافتراضي (للفلفية فقط) */
+:root {
+  --app-theme: #40E0D0; 
+}
+
 @theme {
   --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+
+  /* 2. إذا بدك الأصفر يضل يلحق الخلفية خليه، إذا بدك يرجع أصفر احذف هدول: */
+  --color-yellow-400: var(--app-theme);
+  --color-yellow-500: var(--app-theme);
+  --color-yellow-600: var(--app-theme);
+
+  /* تم حذف ربط الرمادي (Gray) ليعود للونه الطبيعي */
 }
 
 body {
-  background-color: #FFD700;
+  /* الخلفية فقط هي التي ستتغير عند اختيار لون جديد */
+  background-color: var(--app-theme);
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  transition: background-color 0.5s ease;
 }
 
 * {

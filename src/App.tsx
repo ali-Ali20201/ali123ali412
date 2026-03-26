@@ -68,20 +68,20 @@ const getAutoIcon = (name: string): keyof typeof ICON_MAP => {
   return 'Package';
 };
 
-const ManageCategoriesModal = ({ isOpen, onClose, categories, addCategory, deleteCategory, newCatName, setNewCatName, newCatWords, setNewCatWords, editingCatId, editCategory, catError }: any) => {
+const ManageCategoriesModal = ({ isOpen, onClose, categories, addCategory, deleteCategory, newCatName, setNewCatName, newCatWords, setNewCatWords, editingCatId, editCategory, catError, playClick }: any) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-3xl border-4 border-black w-full max-w-md max-h-[80vh] overflow-y-auto custom-scrollbar">
+    <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4" onClick={() => { playClick(); onClose(); }}>
+      <div className="bg-white p-6 rounded-3xl border-4 border-black w-full max-w-md max-h-[80vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-black">إدارة الفئات</h2>
-          <button onClick={onClose}><X /></button>
+          <button onClick={() => { playClick(); onClose(); }}><X /></button>
         </div>
         <div className="space-y-4">
           <input className="w-full p-2 border-2 border-black rounded-xl" placeholder="اسم الفئة" value={newCatName} onChange={e => setNewCatName(e.target.value)} />
           <textarea className="w-full p-2 border-2 border-black rounded-xl" placeholder="الكلمات (اكتب كل كلمة في سطر)" value={newCatWords} onChange={e => setNewCatWords(e.target.value)} rows={5} />
           {catError && <p className="text-red-500 text-sm font-bold">{catError}</p>}
-          <button className="w-full bg-black text-white p-3 rounded-xl font-bold" onClick={addCategory}>
+          <button className="w-full bg-black text-white p-3 rounded-xl font-bold" onClick={() => { playClick(); addCategory(); }}>
             {editingCatId ? 'تحديث الفئة' : 'إضافة فئة'}
           </button>
           <div className="space-y-3 mt-6">
@@ -92,8 +92,8 @@ const ManageCategoriesModal = ({ isOpen, onClose, categories, addCategory, delet
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-bold text-lg">{cat.name}</span>
                   <div className="flex gap-2">
-                    <button className="text-blue-500" onClick={() => editCategory(cat)}><Edit2 className="w-5 h-5" /></button>
-                    <button className="text-red-500" onClick={() => deleteCategory(cat.id)}><Trash2 className="w-5 h-5" /></button>
+                    <button className="text-blue-500" onClick={() => { playClick(); editCategory(cat); }}><Edit2 className="w-5 h-5" /></button>
+                    <button className="text-red-500" onClick={() => { playClick(); deleteCategory(cat.id); }}><Trash2 className="w-5 h-5" /></button>
                   </div>
                 </div>
                 <div className="text-sm text-gray-600 flex flex-wrap gap-1">
@@ -110,7 +110,7 @@ const ManageCategoriesModal = ({ isOpen, onClose, categories, addCategory, delet
   );
 };
 
-const ColorPickerModal = ({ isOpen, onClose, color, onChange }: any) => {
+const ColorPickerModal = ({ isOpen, onClose, color, onChange, playClick }: any) => {
   if (!isOpen) return null;
   
   // Define the exact palette structure from the image (12 columns, 6 rows)
@@ -130,8 +130,8 @@ const ColorPickerModal = ({ isOpen, onClose, color, onChange }: any) => {
   const colors = generatePalette();
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-3xl border-4 border-black w-full max-w-2xl">
+    <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4" onClick={() => { playClick(); onClose(); }}>
+      <div className="bg-white p-6 rounded-3xl border-4 border-black w-full max-w-2xl" onClick={e => e.stopPropagation()}>
         <h2 className="text-xl font-black mb-4">اختر لون الخلفية</h2>
         <div className="grid grid-cols-15 gap-0.5">
           {colors.map((c, i) => (
@@ -139,11 +139,11 @@ const ColorPickerModal = ({ isOpen, onClose, color, onChange }: any) => {
               key={i} 
               className="w-8 h-8 border border-black/10 hover:scale-110 transition-transform" 
               style={{ backgroundColor: c }} 
-              onClick={() => { onChange(c); onClose(); }} 
+              onClick={() => { playClick(); onChange(c); onClose(); }} 
             />
           ))}
         </div>
-        <button className="w-full mt-6 bg-black text-white p-3 rounded-xl font-bold" onClick={onClose}>إغلاق</button>
+        <button className="w-full mt-6 bg-black text-white p-3 rounded-xl font-bold" onClick={() => { playClick(); onClose(); }}>إغلاق</button>
       </div>
     </div>
   );
@@ -153,6 +153,7 @@ interface ResizableBoxProps {
   id: string;
   children: React.ReactNode;
   className?: string;
+  customStyle?: React.CSSProperties;
   isAdminMode: boolean;
   isEditMode: boolean;
   layoutConfig: Record<string, { width?: number; height?: number; x?: number; y?: number; scale?: number }>;
@@ -160,9 +161,17 @@ interface ResizableBoxProps {
   key?: React.Key;
 }
 
-const ResizableBox = ({ id, children, className = '', isAdminMode, isEditMode, layoutConfig, updateLayout }: ResizableBoxProps) => {
+const ResizableBox = ({ id, children, className = '', customStyle = {}, isAdminMode, isEditMode, layoutConfig, updateLayout }: ResizableBoxProps) => {
   const boxRef = React.useRef<HTMLDivElement>(null);
   const config = layoutConfig[id] || {};
+  
+  // Define sync pairings for instant coordinated updates
+  const syncPairs: Record<string, string> = {
+    'handover-box': 'reveal-box',
+    'reveal-box': 'handover-box',
+    'btn-handover': 'btn-reveal-next',
+    'btn-reveal-next': 'btn-handover'
+  };
 
   const startInteraction = (e: React.MouseEvent | React.TouchEvent, action: string) => {
     if (!isAdminMode) return;
@@ -216,7 +225,14 @@ const ResizableBox = ({ id, children, className = '', isAdminMode, isEditMode, l
         }
       }
 
-      updateLayout(id, { width: newWidth, height: newHeight, x: newX, y: newY, scale: newScale });
+      const newConfig = { width: newWidth, height: newHeight, x: newX, y: newY, scale: newScale };
+      updateLayout(id, newConfig);
+      
+      // Instantly sync paired box for coordinated updates
+      const pairedBox = syncPairs[id];
+      if (pairedBox) {
+        updateLayout(pairedBox, newConfig);
+      }
     };
 
     const onUp = () => {
@@ -238,13 +254,14 @@ const ResizableBox = ({ id, children, className = '', isAdminMode, isEditMode, l
     maxWidth: 'none',
     maxHeight: 'none',
     zIndex: isAdminMode ? 100 : 1,
+    ...customStyle,
   };
 
   return (
     <motion.div 
       ref={boxRef}
       layout
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{ duration: 0.01 }}
       animate={{ x: config.x || 0, y: config.y || 0, scale: config.scale || 1 }}
       className={`relative ${className} ${isEditMode ? 'ring-2 ring-blue-400/50 ring-dashed' : ''}`}
       style={style}
@@ -285,49 +302,53 @@ const ResizableBox = ({ id, children, className = '', isAdminMode, isEditMode, l
   );
 };
 
-const DramaticRevealOut = ({ players, outIndex, onComplete }: { players: Player[], outIndex: number, onComplete: () => void }) => {
+const DramaticRevealOut = ({ players, outIndex, onComplete, backgroundColor, playClick, playReveal }: { players: Player[], outIndex: number, onComplete: () => void, backgroundColor: string, playClick: () => void, playReveal: () => void }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Play enthusiastic music
-    if (audioRef.current) {
-      audioRef.current.play().catch(e => console.error("Audio play failed", e));
-    }
-
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % players.length);
-    }, 100);
+      playClick(); // Play sound on each name change
+    }, 150); // Even slower cycling
 
+    const totalCycles = 30; 
     const timeout = setTimeout(() => {
       clearInterval(interval);
       setCurrentIndex(outIndex);
       setIsFinished(true);
-      setTimeout(onComplete, 2000); // Wait 2 seconds before completing
-    }, 3000); // Scroll for 3 seconds
+      playReveal(); // Play reveal sound when finished
+      setTimeout(onComplete, 2500); // Wait 2.5 seconds before completing
+    }, 150 * totalCycles); // Duration based on cycles
 
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [players, outIndex, onComplete]);
+  }, [players, outIndex, onComplete, playClick, playReveal]);
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[300]">
-      <audio ref={audioRef} src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" loop />
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="text-white text-4xl font-black text-center"
-      >
-        {players[currentIndex].name}
-      </motion.div>
+      <div className="relative h-32 flex items-center justify-center">
+        <AnimatePresence mode="popLayout">
+          <motion.div 
+            key={currentIndex}
+            initial={{ y: 20, opacity: 0, scale: 0.8 }}
+            animate={{ y: 0, opacity: 1, scale: 1.2 }}
+            exit={{ y: -20, opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.1 }}
+            className="text-white text-4xl font-black text-center"
+          >
+            {players[currentIndex].name}
+          </motion.div>
+        </AnimatePresence>
+      </div>
       {isFinished && (
         <motion.div 
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1.5 }}
-          className="text-yellow-400 text-6xl font-black mt-8"
+          className="text-6xl font-black mt-8 text-center"
+          style={{ color: backgroundColor }}
         >
           {players[outIndex].name} هو برا السالفة!
         </motion.div>
@@ -495,6 +516,8 @@ export default function App() {
   const [newCatWords, setNewCatWords] = useState('');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catError, setCatError] = useState('');
+  const [hoveredVoter, setHoveredVoter] = useState<number | null>(null);
+  const [hoveredGuess, setHoveredGuess] = useState<number | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   // Initialize Socket.io
@@ -662,7 +685,7 @@ export default function App() {
   const resetLayout = () => {
     setLayoutConfig({});
     updateSettings({ layoutConfig: {} });
-    playClick();
+    playReset();
   };
 
   const [layoutConfig, setLayoutConfig] = useState<Record<string, {width?: number, height?: number, x?: number, y?: number, scale?: number}>>(() => {
@@ -706,51 +729,109 @@ export default function App() {
     updateSettings({ backgroundColor: color });
   };
 
-  const clickAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const successAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const dramaticAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const revealAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  // Store last layout configs for handover and reveal boxes
+  const lastHandoverLayoutRef = React.useRef<{width?: number, height?: number, x?: number, y?: number, scale?: number} | null>(null);
+  const lastRevealLayoutRef = React.useRef<{width?: number, height?: number, x?: number, y?: number, scale?: number} | null>(null);
 
-  // Preload audio
-  useEffect(() => {
-    clickAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
-    successAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3');
-    dramaticAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/270/270-preview.mp3');
-    revealAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3');
+  // Web Audio API context for generating sounds
+  const audioContextRef = React.useRef<AudioContext | null>(null);
+  const nextQuestionSoundToggleRef = React.useRef(false);
+
+  // Initialize audio context on first user interaction
+  const initAudioContext = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+  };
+
+  // Generate a simple beep sound
+  const generateBeep = (frequency: number, duration: number, type: OscillatorType = 'sine') => {
+    if (!audioContextRef.current) return;
     
-    [clickAudioRef.current, successAudioRef.current, dramaticAudioRef.current, revealAudioRef.current].forEach(a => a.load());
-  }, []);
+    const oscillator = audioContextRef.current.createOscillator();
+    const gainNode = audioContextRef.current.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContextRef.current.destination);
+    
+    oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
+    oscillator.type = type;
+    
+    gainNode.gain.setValueAtTime(0.3, audioContextRef.current.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + duration);
+    
+    oscillator.start(audioContextRef.current.currentTime);
+    oscillator.stop(audioContextRef.current.currentTime + duration);
+  };
 
   const playClick = () => {
-    if (clickAudioRef.current) {
-      clickAudioRef.current.currentTime = 0;
-      clickAudioRef.current.volume = 0.8;
-      clickAudioRef.current.play().catch((e) => console.error('Audio play error (click):', e));
-    }
+    initAudioContext();
+    generateBeep(1000, 0.08, 'square'); // Main click sound - higher frequency, shorter, square wave
   };
 
   const playSuccess = () => {
-    if (successAudioRef.current) {
-      successAudioRef.current.currentTime = 0;
-      successAudioRef.current.volume = 0.8;
-      successAudioRef.current.play().catch((e) => console.error('Audio play error (success):', e));
-    }
+    initAudioContext();
+    generateBeep(600, 0.2); // Success sound
+    setTimeout(() => generateBeep(800, 0.2), 100);
   };
 
   const playDramatic = () => {
-    if (dramaticAudioRef.current) {
-      dramaticAudioRef.current.currentTime = 0;
-      dramaticAudioRef.current.volume = 0.8;
-      dramaticAudioRef.current.play().catch((e) => console.error('Audio play error (dramatic):', e));
-    }
+    initAudioContext();
+    generateBeep(200, 0.5, 'sawtooth'); // Dramatic sound
   };
 
   const playReveal = () => {
-    if (revealAudioRef.current) {
-      revealAudioRef.current.currentTime = 0;
-      revealAudioRef.current.volume = 0.8;
-      revealAudioRef.current.play().catch((e) => console.error('Audio play error (reveal):', e));
-    }
+    initAudioContext();
+    generateBeep(400, 0.3); // Reveal sound
+    setTimeout(() => generateBeep(600, 0.3), 150);
+  };
+
+  const playError = () => {
+    initAudioContext();
+    generateBeep(150, 0.5, 'sawtooth'); // Error sound - low frequency
+  };
+
+  const playReset = () => {
+    initAudioContext();
+    generateBeep(300, 0.2, 'triangle'); // Reset sound - medium frequency triangle wave
+    setTimeout(() => generateBeep(250, 0.2, 'triangle'), 100);
+  };
+
+  const playBack = () => {
+    initAudioContext();
+    generateBeep(200, 0.15, 'sine'); // Back sound - lower frequency, shorter
+  };
+
+  const playVote = () => {
+    initAudioContext();
+    generateBeep(700, 0.12, 'sine'); // Vote sound - medium frequency
+  };
+
+  const playConfettiSound = () => {
+    initAudioContext();
+    generateBeep(400, 0.1, 'sine');
+    setTimeout(() => generateBeep(500, 0.1, 'sine'), 100);
+    setTimeout(() => generateBeep(600, 0.1, 'sine'), 200);
+    setTimeout(() => generateBeep(800, 0.3, 'sine'), 300);
+  };
+
+  const playVoteNow = () => {
+    initAudioContext();
+    generateBeep(300, 0.1, 'square');
+    setTimeout(() => generateBeep(450, 0.2, 'square'), 100);
+  };
+
+  const playNextQuestion1 = () => {
+    initAudioContext();
+    generateBeep(500, 0.15, 'triangle');
+  };
+
+  const playNextQuestion2 = () => {
+    initAudioContext();
+    generateBeep(650, 0.15, 'triangle');
   };
 
   // Remove the old load data on mount useEffect as we now initialize directly
@@ -769,7 +850,7 @@ export default function App() {
   // Remove debug logs for production
 
   const resetScores = () => {
-    playClick();
+    playReset();
     const updatedPlayers = players.map(p => ({ ...p, score: 0 }));
     setPlayers(updatedPlayers);
     updateSession({ players: updatedPlayers });
@@ -861,17 +942,73 @@ export default function App() {
     });
   };
 
-  const startReveal = () => {
-    playClick();
-    if (players[currentPlayerIndex]?.isOut) {
-      setGameState('DRAMATIC_REVEAL_OUT');
-      updateSession({ gameState: 'DRAMATIC_REVEAL_OUT' });
-    } else {
-      setGameState('REVEAL');
-      setIsRevealed(true);
-      updateSession({ gameState: 'REVEAL', isRevealed: true });
+  useEffect(() => {
+    document.documentElement.style.setProperty('--app-theme', backgroundColor);
+  }, [backgroundColor]);
+
+  // Copy layout from players-box to reveal-box for smooth transition
+  useEffect(() => {
+    if (gameState === 'REVEAL_HANDOVER' && layoutConfig['players-box']) {
+      const playersBoxLayout = layoutConfig['players-box'];
+      setLayoutConfig(prev => ({
+        ...prev,
+        'reveal-box': playersBoxLayout
+      }));
     }
-  };
+  }, [gameState]);
+
+  // Sync handover-box and reveal-box together (مرر الجوال + السالفة هي)
+  useEffect(() => {
+    const mainContentBoxes = ['handover-box', 'reveal-box'];
+    const hasAnyChange = mainContentBoxes.some(box => layoutConfig[box]);
+    
+    if (hasAnyChange) {
+      const changedBox = mainContentBoxes.find(box => layoutConfig[box]);
+      
+      if (changedBox && layoutConfig[changedBox]) {
+        const masterLayout = layoutConfig[changedBox];
+        
+        // Apply same layout to both handover and reveal boxes only
+        lastHandoverLayoutRef.current = masterLayout;
+        lastRevealLayoutRef.current = masterLayout;
+        
+        setLayoutConfig(prev => ({
+          ...prev,
+          'handover-box': masterLayout,
+          'reveal-box': masterLayout,
+        }));
+      }
+    }
+  }, [layoutConfig['handover-box'], layoutConfig['reveal-box']]);
+
+  // Sync button boxes together (استلمت الجوال + التالي)
+  useEffect(() => {
+    const buttonBoxes = ['btn-handover', 'btn-reveal-next'];
+    const hasAnyChange = buttonBoxes.some(box => layoutConfig[box]);
+    
+    if (hasAnyChange) {
+      const changedBox = buttonBoxes.find(box => layoutConfig[box]);
+      
+      if (changedBox && layoutConfig[changedBox]) {
+        const masterLayout = layoutConfig[changedBox];
+        
+        // Apply same layout to both button boxes only
+        setLayoutConfig(prev => ({
+          ...prev,
+          'btn-handover': masterLayout,
+          'btn-reveal-next': masterLayout,
+        }));
+      }
+    }
+  }, [layoutConfig['btn-handover'], layoutConfig['btn-reveal-next']]);
+
+  const startReveal = () => {
+  playClick();
+  // حذفنا شرط الـ DramaticRevealOut ودخلنا فوراً على الكشف
+  setGameState('REVEAL');
+  setIsRevealed(true);
+  updateSession({ gameState: 'REVEAL', isRevealed: true });
+};
 
   const nextPlayerHandover = () => {
     playClick();
@@ -889,7 +1026,13 @@ export default function App() {
   };
 
   const nextQuestion = () => {
-    playClick();
+    if (nextQuestionSoundToggleRef.current) {
+      playNextQuestion2();
+    } else {
+      playNextQuestion1();
+    }
+    nextQuestionSoundToggleRef.current = !nextQuestionSoundToggleRef.current;
+    
     const nextIndex = currentQuestionIndex + 1;
     if (nextIndex >= questionTurns.length) {
       const newTurns = generateQuestionTurns(players);
@@ -903,14 +1046,16 @@ export default function App() {
   };
 
   const startVoting = () => {
-    playClick();
+    playVoteNow();
     setCurrentVoterIndex(0);
     setGameState('VOTING_TURN');
     updateSession({ currentVoterIndex: 0, gameState: 'VOTING_TURN' });
   };
 
   const handleVote = (votedId: string) => {
-    playClick();
+    // Play the same vote sound for all players
+    playVote();
+
     const updatedPlayers = players.map((p, idx) => {
       if (idx === currentVoterIndex) {
         return { ...p, votedForId: votedId };
@@ -938,16 +1083,16 @@ export default function App() {
     if (gameState === 'DRAMATIC_REVEAL' && players.length > 0) {
       if (scoringAppliedRef.current) return;
       
-      // Play dramatic sound
-      playDramatic();
+      // Removed playDramatic() so the last vote sound can be heard clearly.
       
       let count = 0;
-      const totalCycles = 20; // Faster: ~1.5 seconds
+      const totalCycles = 30; // Slower and fewer cycles
       
+      let localRevealIdx = revealPlayerIndex;
       const interval = setInterval(() => {
-        const nextIdx = (revealPlayerIndex + 1) % players.length;
-        setRevealPlayerIndex(nextIdx);
-        updateSession({ revealPlayerIndex: nextIdx });
+        localRevealIdx = (localRevealIdx + 1) % players.length;
+        setRevealPlayerIndex(localRevealIdx);
+        playClick(); // Play sound on each name change
         count++;
         
         if (count >= totalCycles) {
@@ -999,7 +1144,7 @@ export default function App() {
             }
           }, 2500);
         }
-      }, 100);
+      }, 150);
       
       return () => clearInterval(interval);
     } else if (gameState !== 'DRAMATIC_REVEAL') {
@@ -1010,9 +1155,15 @@ export default function App() {
   }, [gameState, players]);
 
   const handleOutGuess = (guess: string) => {
-    playClick();
     const isCorrect = guess === currentWord;
     setGuessResult({ guess, isCorrect });
+
+    // Play appropriate sound effect
+    if (isCorrect) {
+      playConfettiSound(); // Success sound for correct guess
+    } else {
+      playError(); // Error sound for wrong guess
+    }
 
     // Wait a bit to show the colors
     setTimeout(() => {
@@ -1040,7 +1191,7 @@ export default function App() {
   };
 
   const resetGame = () => {
-    playClick();
+    playReset();
     scoringAppliedRef.current = false;
     const updatedPlayers = players.map(p => ({ ...p, isOut: false, votesReceived: 0, votedForId: undefined }));
     setGameState('START');
@@ -1052,7 +1203,7 @@ export default function App() {
   };
 
   const goBack = () => {
-    playClick();
+    playBack();
     let nextState = gameState;
     let nextPlayerIndex = currentPlayerIndex;
     let nextIsRevealed = isRevealed;
@@ -1141,6 +1292,7 @@ export default function App() {
             <div className="flex gap-2">
               <button 
                 onClick={() => {
+                  playClick();
                   if (password === 'fadiali1985$') {
                     setIsAdminMode(true);
                     localStorage.setItem('isAdminMode', 'true');
@@ -1155,7 +1307,7 @@ export default function App() {
                 حسناً
               </button>
               <button 
-                onClick={() => { setShowPasswordPrompt(false); setPassword(''); }}
+                onClick={() => { playClick(); setShowPasswordPrompt(false); setPassword(''); }}
                 className="flex-1 p-3 bg-gray-200 rounded-xl font-bold"
               >
                 إلغاء
@@ -1170,7 +1322,7 @@ export default function App() {
       <div className="fixed top-4 right-4 z-[200] flex gap-2">
         {/* Main Settings Button (The Gear) */}
         <button
-          onClick={() => setShowAdminPanel(prev => !prev)}
+          onClick={() => { playClick(); setShowAdminPanel(prev => !prev); }}
           className="p-3 bg-white/90 backdrop-blur-md rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 active:scale-95 transition-all"
         >
           <Settings className={`w-6 h-6 ${showAdminPanel ? 'rotate-90' : ''} transition-transform`} />
@@ -1188,7 +1340,7 @@ export default function App() {
               <div className="text-sm font-black mb-2 border-b-2 border-black pb-2">إعدادات اللعبة</div>
               
               <button
-                onClick={() => { setIsColorPickerOpen(true); setShowAdminPanel(false); }}
+                onClick={() => { playClick(); setIsColorPickerOpen(true); setShowAdminPanel(false); }}
                 className="w-full flex items-center gap-3 p-2 hover:bg-gray-100 rounded-xl transition-colors font-bold text-sm"
               >
                 <div className="w-5 h-5 rounded-full border-2 border-black" style={{ backgroundColor }} />
@@ -1196,7 +1348,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => { setIsManageCategoriesOpen(true); setShowAdminPanel(false); }}
+                onClick={() => { playClick(); setIsManageCategoriesOpen(true); setShowAdminPanel(false); }}
                 className="w-full flex items-center gap-3 p-2 hover:bg-gray-100 rounded-xl transition-colors font-bold text-sm"
               >
                 <Package className="w-5 h-5" />
@@ -1204,7 +1356,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => { toggleEditMode(); setShowAdminPanel(false); }}
+                onClick={() => { playClick(); toggleEditMode(); setShowAdminPanel(false); }}
                 className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors font-bold text-sm ${isEditMode ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
               >
                 <Eye className="w-5 h-5" />
@@ -1254,12 +1406,14 @@ export default function App() {
             editingCatId={editingCatId}
             editCategory={editCategory}
             catError={catError}
+            playClick={playClick}
           />
           <ColorPickerModal 
             isOpen={isColorPickerOpen} 
             onClose={() => setIsColorPickerOpen(false)} 
             color={backgroundColor} 
             onChange={changeBackgroundColor} 
+            playClick={playClick}
           />
           {/* Phone Frame for Desktop */}
           <div className="w-full max-w-[430px] h-full md:h-[95dvh] md:max-h-[850px] relative overflow-hidden md:rounded-[60px] md:border-[12px] md:border-[#2A2A2A] md:shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center pt-16 pb-8 px-6" style={{ backgroundColor }}>
@@ -1269,14 +1423,12 @@ export default function App() {
 
         {/* Back Button */}
         {gameState !== 'START' && (
-          <ResizableBox id="btn-back" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="absolute top-4 left-4 z-[150]">
-            <button
-              onClick={goBack}
-              className="w-full h-full p-2 bg-white/90 backdrop-blur-md rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 active:scale-95 transition-all flex items-center justify-center"
-            >
-              <ChevronRight className="w-full h-full rotate-180" />
-            </button>
-          </ResizableBox>
+          <button
+            onClick={goBack}
+            className="fixed top-4 left-4 z-[150] p-2 bg-white/90 backdrop-blur-md rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 active:scale-95 transition-all flex items-center justify-center w-12 h-12"
+          >
+            <ChevronRight className="w-6 h-6 rotate-180" />
+          </button>
         )}
 
         <AnimatePresence mode="wait">
@@ -1315,7 +1467,7 @@ export default function App() {
               </ResizableBox>
               <ResizableBox id="btn-how-to-play" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-fit">
                 <button 
-                  onClick={() => setShowHowTo(true)}
+                  onClick={() => { playClick(); setShowHowTo(true); }}
                   className="w-full h-full text-base font-bold underline underline-offset-4 opacity-60 hover:opacity-100 active:scale-95 transition-all"
                 >
                   كيف نلعب؟
@@ -1336,7 +1488,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
-            onClick={() => setShowHowTo(false)}
+            onClick={() => { playClick(); setShowHowTo(false); }}
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }}
@@ -1347,7 +1499,7 @@ export default function App() {
               <ResizableBox id="how-to-box" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="bg-white w-full max-w-md p-6 rounded-[32px] border-4 border-black shadow-[8px_8px_0px_0px_rgba(230,57,70,1)] relative flex flex-col items-center">
                 <ResizableBox id="how-to-close" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="absolute top-4 left-4">
                   <button 
-                    onClick={() => setShowHowTo(false)}
+                    onClick={() => { playClick(); setShowHowTo(false); }}
                     className="p-1.5 hover:bg-gray-100 rounded-full active:scale-95 transition-all"
                   >
                     <X className="w-5 h-5" />
@@ -1359,26 +1511,26 @@ export default function App() {
                 <ResizableBox id="how-to-content" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
                   <div className="space-y-3 text-right">
                     <div className="flex gap-3">
-                      <div className="w-6 h-6 bg-[#FFD700] rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black">1</div>
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black" style={{ backgroundColor }}>1</div>
                       <p className="font-bold text-sm">اختاروا الفئة ومرروا الجوال بينكم، كل واحد يشوف السالفة إلا واحد بيطلع له "أنت برا السالفة".</p>
                     </div>
                     <div className="flex gap-3">
-                      <div className="w-6 h-6 bg-[#FFD700] rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black">2</div>
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black" style={{ backgroundColor }}>2</div>
                       <p className="font-bold text-sm">ابدأوا اسألوا بعض أسئلة ذكية عن السالفة بدون ما توضحونها مرة عشان اللي برا ما يعرفها.</p>
                     </div>
                     <div className="flex gap-3">
-                      <div className="w-6 h-6 bg-[#FFD700] rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black">3</div>
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black" style={{ backgroundColor }}>3</div>
                       <p className="font-bold text-sm">بعد ما يخلص النقاش، كل واحد يصوت على الشخص اللي يشك فيه.</p>
                     </div>
                     <div className="flex gap-3">
-                      <div className="w-6 h-6 bg-[#FFD700] rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black">4</div>
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border-2 border-black" style={{ backgroundColor }}>4</div>
                       <p className="font-bold text-sm">لو كشفتوه، يقدر يفوز لو عرف وش هي السالفة! لو ما كشفتوه، هو اللي يفوز.</p>
                     </div>
                   </div>
                 </ResizableBox>
                 <ResizableBox id="how-to-btn" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full mt-6">
                   <button 
-                    onClick={() => setShowHowTo(false)}
+                    onClick={() => { playClick(); setShowHowTo(false); }}
                     className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-all"
                   >
                     فهمت!
@@ -1454,7 +1606,7 @@ export default function App() {
                         initial={{ opacity: 0, scale: 0.8, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.8, x: -20 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        transition={{ duration: 0.05 }}
                         className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border-2 border-black"
                       >
                         <span className="flex-1 font-bold text-sm">{player.name}</span>
@@ -1489,36 +1641,53 @@ export default function App() {
         )}
 
         {gameState === 'CATEGORY' && (
-          <motion.div 
-            key="category"
-            initial={{ y: 300, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -300, opacity: 0 }}
-            className="w-full px-6 space-y-6"
+        <motion.div 
+          key="category"
+          initial={{ y: 300, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -300, opacity: 0 }}
+          className="w-full px-6 space-y-6 flex flex-col items-start"
+        >
+          {/* عنوان الفئة */}
+          <ResizableBox 
+            id="category-title" 
+            isAdminMode={isAdminMode} 
+            isEditMode={isEditMode} 
+            layoutConfig={layoutConfig} 
+            updateLayout={updateLayout} 
+            className="w-full"
           >
-            <ResizableBox id="category-title" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
-              <h2 className="text-3xl font-black text-center mb-5">اختر الفئة</h2>
-            </ResizableBox>
-            <ResizableBox id="category-box" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
-              {allCategories.map((cat, idx) => (
-                <ResizableBox key={cat.id} id={`category-btn-${cat.id}`} isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full h-full">
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.05 }}
-                    onClick={() => selectCategory(cat)}
-                    className="w-full h-full bg-white p-4 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 active:scale-95 transition-all flex flex-col items-center gap-2 group"
-                  >
-                    <div className="p-3 bg-[#F1FAEE] rounded-xl group-hover:scale-110 transition-transform">
-                      {ICON_MAP[cat.icon]}
-                    </div>
-                    <span className="text-base font-black">{cat.name}</span>
-                  </motion.button>
-                </ResizableBox>
-              ))}
-            </ResizableBox>
-          </motion.div>
-        )}
+            <h2 className="text-3xl font-black text-center mb-5 text-black">اختر الفئة</h2>
+          </ResizableBox>
+
+          {/* شبكة الفئات */}
+          <ResizableBox 
+            id="category-box" 
+            isAdminMode={isAdminMode} 
+            isEditMode={isEditMode} 
+            layoutConfig={layoutConfig} 
+            updateLayout={updateLayout} 
+            className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1 w-full"
+          >
+            {allCategories.map((cat, idx) => (
+              <div key={cat.id} className="w-full h-full">
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.05 }}
+                  onClick={() => selectCategory(cat)}
+                  className="w-full h-full bg-white p-4 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 active:scale-95 transition-all flex flex-col items-center gap-2 group"
+                >
+                  <div className="p-3 bg-[#F1FAEE] rounded-xl group-hover:scale-110 transition-transform">
+                    {ICON_MAP[cat.icon]}
+                  </div>
+                  <span className="text-base font-black text-black">{cat.name}</span>
+                </motion.button>
+              </div>
+            ))}
+          </ResizableBox>
+        </motion.div>
+      )}
 
         {gameState === 'REVEAL_HANDOVER' && players.length > 0 && (
           <motion.div 
@@ -1529,7 +1698,7 @@ export default function App() {
             className="w-full px-6 text-center space-y-8"
           >
             <ResizableBox id="handover-box" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="bg-white p-8 rounded-[36px] border-4 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center">
-              <ResizableBox id="handover-icon" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-20 h-20 bg-[#FFD700] rounded-full flex items-center justify-center mb-5 border-4 border-black">
+              <ResizableBox id="handover-icon" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-20 h-20 rounded-full flex items-center justify-center mb-5 border-4 border-black" customStyle={{ backgroundColor }}>
                 <Users className="w-10 h-10" />
               </ResizableBox>
               <ResizableBox id="handover-title" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
@@ -1573,6 +1742,7 @@ export default function App() {
                 <motion.div 
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
                   className="space-y-4 w-full flex flex-col items-center"
                 >
                   <ResizableBox id="reveal-subtitle" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
@@ -1605,6 +1775,9 @@ export default function App() {
           <DramaticRevealOut
             players={players}
             outIndex={players.findIndex(p => p.isOut)}
+            backgroundColor={backgroundColor}
+            playClick={playClick}
+            playReveal={playReveal}
             onComplete={() => {
               setGameState('REVEAL');
               setIsRevealed(true);
@@ -1636,6 +1809,7 @@ export default function App() {
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.05 }}
                     className="w-full space-y-5 flex flex-col items-center"
                   >
                     <ResizableBox id="questions-asker" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
@@ -1714,9 +1888,12 @@ export default function App() {
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: idx * 0.05 }}
+                        transition={{ duration: 0.05 }}
                         onClick={() => handleVote(player.id)}
-                        className="w-full h-full bg-gray-50 p-3.5 rounded-xl border-2 border-black hover:bg-[#FFD700] active:scale-95 transition-all flex items-center justify-between group"
+                        className="w-full h-full bg-gray-50 p-3.5 rounded-xl border-2 border-black active:scale-95 transition-all flex items-center justify-between group"
+                        style={{ backgroundColor: hoveredVoter === idx ? backgroundColor : '' }}
+                        onMouseEnter={() => setHoveredVoter(idx)}
+                        onMouseLeave={() => setHoveredVoter(null)}
                       >
                         <span className="text-sm font-black truncate">{player.name}</span>
                         <CheckCircle2 className="w-5 h-5 opacity-20 group-hover:opacity-100" />
@@ -1753,7 +1930,7 @@ export default function App() {
                   animate={{ y: 0, opacity: 1 }}
                   className="space-y-1"
                 >
-                  <div className="text-lg font-bold text-[#FFD700] tracking-[0.2em] uppercase text-center">جاري البحث عن</div>
+                  <div className="text-lg font-bold tracking-[0.2em] uppercase text-center" style={{ color: backgroundColor }}>جاري البحث عن</div>
                   <div className="text-3xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] text-center">
                     اللي برا السالفة...
                   </div>
@@ -1768,8 +1945,9 @@ export default function App() {
                       initial={{ y: 40, opacity: 0, scale: 0.5, rotate: -5 }}
                       animate={{ y: 0, opacity: 1, scale: 1.1, rotate: 0 }}
                       exit={{ y: -40, opacity: 0, scale: 0.5, rotate: 5 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className="text-5xl md:text-6xl font-black text-[#FFD700] drop-shadow-[0_0_30px_rgba(255,215,0,0.6)] text-center"
+                      transition={{ duration: 0.1 }}
+                      className="text-5xl md:text-6xl font-black drop-shadow-[0_0_30px_rgba(255,215,0,0.6)] text-center"
+                      style={{ color: backgroundColor }}
                     >
                       {players[revealPlayerIndex]?.name || '...'}
                     </motion.div>
@@ -1785,7 +1963,7 @@ export default function App() {
                       animate={{ 
                         scale: [1, 1.3, 1], 
                         opacity: [0.2, 1, 0.2],
-                        backgroundColor: ["#E63946", "#FFD700", "#E63946"]
+                        backgroundColor: ["#E63946", backgroundColor, "#E63946"]
                       }}
                       transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
                       className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(230,57,70,0.5)]"
@@ -1830,7 +2008,7 @@ export default function App() {
                       <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: idx * 0.05 }}
+                        transition={{ duration: 0.05 }}
                         onClick={() => handleOutGuess(word)}
                         className={`w-full h-full p-3 border-2 border-black rounded-xl text-sm font-bold transition-all truncate ${
                           guessResult 
@@ -1839,8 +2017,11 @@ export default function App() {
                               : word === guessResult.guess 
                                 ? 'bg-red-500 text-white' 
                                 : 'bg-gray-50'
-                            : 'bg-gray-50 hover:bg-[#FFD700] active:scale-95'
+                            : `bg-gray-50 active:scale-95`
                         }`}
+                        style={{ backgroundColor: hoveredGuess === idx && !guessResult ? backgroundColor : '' }}
+                        onMouseEnter={() => setHoveredGuess(idx)}
+                        onMouseLeave={() => setHoveredGuess(null)}
                       >
                         {word}
                       </motion.button>
@@ -1881,7 +2062,7 @@ export default function App() {
                         <motion.div 
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.1 }}
+                          transition={{ duration: 0.05 }}
                           className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border-2 border-black"
                         >
                           <div className="flex items-center gap-2">
@@ -1928,6 +2109,7 @@ export default function App() {
               <ResizableBox id="btn-error-reset" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full mt-4">
                 <button 
                   onClick={() => {
+                    playClick();
                     localStorage.clear();
                     window.location.reload();
                   }}
@@ -1940,9 +2122,10 @@ export default function App() {
             </ResizableBox>
           </motion.div>
         )}
+        {/* Audio elements removed - using Web Audio API instead */}
       </div>
     </>
-  <style>{`
+    <style>{`
     body {
       margin: 0;
       padding: 0;
