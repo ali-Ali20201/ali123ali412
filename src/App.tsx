@@ -1109,6 +1109,20 @@ export default function App() {
 
           // Scoring logic
           const outPlayer = players.find(p => p.isOut);
+          
+          let correctVotesAgainstOut = 0;
+          let wrongVotesByNormals = 0;
+          
+          players.forEach(p => {
+            if (!p.isOut) {
+              if (p.votedForId === outPlayer?.id) {
+                correctVotesAgainstOut++;
+              } else {
+                wrongVotesByNormals++;
+              }
+            }
+          });
+
           let finalPlayers = players.map(p => {
             let newScore = p.score;
             if (!p.isOut) {
@@ -1117,31 +1131,21 @@ export default function App() {
               } else {
                 newScore = Math.max(0, newScore - 100);
               }
+            } else {
+              const outPointsChange = (wrongVotesByNormals * 100) - (correctVotesAgainstOut * 100);
+              newScore = Math.max(0, newScore + outPointsChange);
             }
             return { ...p, score: newScore };
           });
 
-          if (!outCaught && outPlayer) {
-            finalPlayers = finalPlayers.map(p => 
-              p.isOut ? { ...p, score: p.score + 200 } : p
-            );
-          }
-
-          const votedOutPlayer = mostVoted.find(p => p.isOut) || mostVoted[0];
-          const votedOutIndex = players.findIndex(p => p.id === votedOutPlayer.id);
+          const outPlayerIndex = players.findIndex(p => p.isOut);
           
           setPlayers(finalPlayers);
-          setRevealPlayerIndex(votedOutIndex);
+          setRevealPlayerIndex(outPlayerIndex);
 
           setTimeout(() => {
-            if (outCaught) {
-              setGameState('OUT_GUESS');
-              updateSession({ players: finalPlayers, revealPlayerIndex: votedOutIndex, gameState: 'OUT_GUESS' });
-            } else {
-              setWinner('OUT');
-              setGameState('RESULT');
-              updateSession({ players: finalPlayers, revealPlayerIndex: votedOutIndex, winner: 'OUT', gameState: 'RESULT' });
-            }
+            setGameState('OUT_GUESS');
+            updateSession({ players: finalPlayers, revealPlayerIndex: outPlayerIndex, gameState: 'OUT_GUESS' });
           }, 2500);
         }
       }, 150);
@@ -1170,16 +1174,20 @@ export default function App() {
       let finalWinner: 'PLAYERS' | 'OUT' = 'PLAYERS';
       let updatedPlayers = [...players];
 
+      const maxVotes = Math.max(...players.map(p => p.votesReceived));
+      const mostVoted = players.filter(p => p.votesReceived === maxVotes);
+      const isOutCaught = mostVoted.some(p => p.isOut);
+
       if (isCorrect) {
         finalWinner = 'OUT';
-        updatedPlayers = players.map(p => p.isOut ? { ...p, score: p.score + 200 } : p);
+        updatedPlayers = players.map(p => p.isOut ? { ...p, score: p.score + 100 } : p);
         confetti({
           particleCount: 150,
           spread: 70,
           origin: { y: 0.6 }
         });
       } else {
-        finalWinner = 'PLAYERS';
+        finalWinner = isOutCaught ? 'PLAYERS' : 'OUT';
       }
 
       setWinner(finalWinner);
@@ -1982,56 +1990,68 @@ export default function App() {
           </motion.div>
         )}
 
-        {gameState === 'OUT_GUESS' && (
-          <motion.div 
-            key="out_guess"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            className="w-full px-6 text-center space-y-4"
-          >
-            <ResizableBox id="out-guess-box" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="bg-white p-6 rounded-[32px] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center">
-              <ResizableBox id="out-guess-icon" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full flex justify-center">
-                <AlertCircle className="w-10 h-10 mb-3 text-orange-500" />
+        {gameState === 'OUT_GUESS' && (() => {
+          const maxVotes = Math.max(...players.map(p => p.votesReceived));
+          const mostVoted = players.filter(p => p.votesReceived === maxVotes);
+          const isOutCaught = mostVoted.some(p => p.isOut);
+          const outPlayerName = players.find(p => p.isOut)?.name;
+
+          return (
+            <motion.div 
+              key="out_guess"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="w-full px-6 text-center space-y-4"
+            >
+              <ResizableBox id="out-guess-box" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="bg-white p-6 rounded-[32px] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center">
+                <ResizableBox id="out-guess-icon" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full flex justify-center">
+                  <AlertCircle className={`w-10 h-10 mb-3 ${isOutCaught ? 'text-orange-500' : 'text-red-500'}`} />
+                </ResizableBox>
+                <ResizableBox id="out-guess-title" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
+                  <h2 className="text-2xl font-black mb-2 text-center">{isOutCaught ? 'كشفتوه!' : 'صوتوا غلط!'}</h2>
+                </ResizableBox>
+                <ResizableBox id="out-guess-subtitle" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
+                  <p className="text-sm font-bold mb-5 text-center leading-relaxed">
+                    {isOutCaught 
+                      ? `يا ${outPlayerName}، أنت برا السالفة فعلاً. الحين عندك فرصة تعوض نقاطك لو عرفت وش هي السالفة!`
+                      : `يا ${outPlayerName}، أنت برا السالفة. الحين عندك فرصة تزيد نقاطك لو عرفت وش هي السالفة!`
+                    }
+                  </p>
+                </ResizableBox>
+                
+                <ResizableBox id="out-guess-options" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
+                  <div className="grid grid-cols-2 gap-3 max-h-[35vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {outGuessOptions.map((word, idx) => (
+                      <ResizableBox key={idx} id={`out-guess-btn-${idx}`} isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full h-full">
+                        <motion.button
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.05 }}
+                          onClick={() => handleOutGuess(word)}
+                          className={`w-full h-full p-3 border-2 border-black rounded-xl text-sm font-bold transition-all truncate ${
+                            guessResult 
+                              ? word === currentWord 
+                                ? 'bg-green-500 text-white' 
+                                : word === guessResult.guess 
+                                  ? 'bg-red-500 text-white' 
+                                  : 'bg-gray-50'
+                              : `bg-gray-50 active:scale-95`
+                          }`}
+                          style={{ backgroundColor: hoveredGuess === idx && !guessResult ? backgroundColor : '' }}
+                          onMouseEnter={() => setHoveredGuess(idx)}
+                          onMouseLeave={() => setHoveredGuess(null)}
+                        >
+                          {word}
+                        </motion.button>
+                      </ResizableBox>
+                    ))}
+                  </div>
+                </ResizableBox>
               </ResizableBox>
-              <ResizableBox id="out-guess-title" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
-                <h2 className="text-2xl font-black mb-2 text-center">كشفتوه!</h2>
-              </ResizableBox>
-              <ResizableBox id="out-guess-subtitle" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
-                <p className="text-sm font-bold mb-5 text-center leading-relaxed">يا {players.find(p => p.isOut)?.name}، أنت برا السالفة فعلاً. الحين عندك فرصة تفوز لو عرفت وش هي السالفة!</p>
-              </ResizableBox>
-              
-              <ResizableBox id="out-guess-options" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full">
-                <div className="grid grid-cols-2 gap-3 max-h-[35vh] overflow-y-auto pr-1 custom-scrollbar">
-                  {outGuessOptions.map((word, idx) => (
-                    <ResizableBox key={idx} id={`out-guess-btn-${idx}`} isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full h-full">
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.05 }}
-                        onClick={() => handleOutGuess(word)}
-                        className={`w-full h-full p-3 border-2 border-black rounded-xl text-sm font-bold transition-all truncate ${
-                          guessResult 
-                            ? word === currentWord 
-                              ? 'bg-green-500 text-white' 
-                              : word === guessResult.guess 
-                                ? 'bg-red-500 text-white' 
-                                : 'bg-gray-50'
-                            : `bg-gray-50 active:scale-95`
-                        }`}
-                        style={{ backgroundColor: hoveredGuess === idx && !guessResult ? backgroundColor : '' }}
-                        onMouseEnter={() => setHoveredGuess(idx)}
-                        onMouseLeave={() => setHoveredGuess(null)}
-                      >
-                        {word}
-                      </motion.button>
-                    </ResizableBox>
-                  ))}
-                </div>
-              </ResizableBox>
-            </ResizableBox>
-          </motion.div>
-        )}
+            </motion.div>
+          );
+        })()}
 
         {gameState === 'RESULT' && (
           <motion.div 
@@ -2088,6 +2108,12 @@ export default function App() {
                 <RotateCcw className="w-5 h-5" />
                 لعب مرة ثانية
               </button>
+            </ResizableBox>
+            
+            <ResizableBox id="play-again-note" isAdminMode={isAdminMode} isEditMode={isEditMode} layoutConfig={layoutConfig} updateLayout={updateLayout} className="w-full mt-2">
+              <p className="text-xs font-bold text-red-600 text-center leading-relaxed">
+                (إذا ضغطت على اللعب مرة ثانية سوف تبقى النقاط وتستمر، أما إذا ضغطت على الرجوع الذي بالأعلى فتتصفر النقاط)
+              </p>
             </ResizableBox>
           </motion.div>
         )}
